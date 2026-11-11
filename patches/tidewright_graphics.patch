@@ -1,0 +1,36 @@
+diff --git a/index.html b/index.html
+index fe4c33a..bd2720a 100644
+--- a/index.html
++++ b/index.html
+@@ -664,6 +664,22 @@ function waterPass(e,color){
+       else ctx.fillRect(px+m-e,py,T-2*m+2*e,T/2);}
+   }
+ }
++function drawWaterShimmer(){
++  ctx.save();ctx.globalCompositeOperation='screen';ctx.lineCap='round';
++  for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){
++    const t=grid[y][x];if(t.kind!=='canal'&&!(t.kind==='hraz'&&t.open))continue;
++    const phase=time*1.35+x*1.71+y*2.13;
++    const pulse=(Math.sin(phase)+1)*0.5;
++    if(pulse<0.46)continue;
++    const px=x*T,py=y*T,offset=(Math.sin(phase*0.73)*0.18+0.5)*T;
++    const length=T*(0.12+pulse*0.12),alpha=(pulse-0.46)*0.12;
++    ctx.strokeStyle='rgba(220,249,255,'+alpha.toFixed(3)+')';
++    ctx.lineWidth=Math.max(1,T*0.018);
++    ctx.beginPath();ctx.moveTo(px+offset,py+T*0.28);ctx.lineTo(px+offset+length,py+T*0.28);ctx.stroke();
++    ctx.beginPath();ctx.moveTo(px+T-offset-length,py+T*0.72);ctx.lineTo(px+T-offset,py+T*0.72);ctx.stroke();
++  }
++  ctx.restore();
++}
+ function drawFlow(){
+   const ph=(time/STEP)%1,pos=(ph-0.5)*T*0.9,al=0.55*(1-Math.abs(pos)/(T*0.45)),s=T*0.11;
+   ctx.lineWidth=Math.max(1.5,T*0.05);ctx.lineCap='round';ctx.lineJoin='round';
+@@ -874,7 +890,7 @@ function draw(dt){
+   const w=Math.sin(time*1.3)*2;rr(ctx,O-9-w,O-9-w,T*COLS+18+2*w,T*ROWS+18+2*w,T*0.5);ctx.stroke();ctx.restore();
+   ctx.drawImage(bg,0,0,W,H);
+   ctx.translate(O,O);
+-  waterPass(1.8,'#25698f');waterPass(0,'#3d9cc9');drawFlow();
++  waterPass(1.8,'#25698f');waterPass(0,'#3d9cc9');drawWaterShimmer();drawFlow();
+   for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){const t=grid[y][x],px=x*T,py=y*T;
+     switch(t.kind){
+       case'hraz':drawGate(t,px,py);break;
