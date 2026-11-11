@@ -578,9 +578,12 @@ function musicSync(){
   if(!settings.music||settings.vol<=0||document.hidden){if(audio)audio.pause();return;}
   initAudio();if(actx&&actx.state==='suspended')actx.resume().catch(()=>{});
   if(audio.paused){const p=audio.play();if(p&&p.catch)p.catch(()=>{});}
+  else if(actx&&actx.state!=='running')actx.resume().catch(()=>{});
 }
 function saveSettings(){try{localStorage.setItem(SET_KEY,JSON.stringify(settings));}catch(e){}}
-addEventListener('pointerdown',()=>{if(settings.music&&(!audio||audio.paused))musicSync();},true);
+// phones (iOS especially) only allow audio to start from a finished tap (touchend / click), not from pointerdown
+const unlockAudio=()=>{if(settings.music&&(!audio||audio.paused||(actx&&actx.state!=='running')))musicSync();};
+['pointerdown','pointerup','touchend','click','keydown'].forEach(ev=>addEventListener(ev,unlockAudio,true));
 document.addEventListener('visibilitychange',()=>{if(document.hidden){if(audio)audio.pause();}else if(audio)musicSync();});
 function openSettings(back){
   const pct=Math.round(settings.vol*100);
