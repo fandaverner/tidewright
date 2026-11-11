@@ -82,6 +82,15 @@ canvas{display:block;touch-action:none;filter:drop-shadow(0 10px 20px rgba(0,0,0
 .story b{font-style:normal;letter-spacing:.5px;color:#1f4f66}
 .story .end{text-align:center;font-size:19px;font-style:normal;font-weight:700;color:#c0392b;margin:4px 0 12px}
 .meta{font-size:12.5px!important;opacity:.75;text-align:center!important;border-top:1px solid rgba(58,42,20,.15);padding-top:8px}
+.set{text-align:left;margin-top:4px}
+.setrow{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.5);border-radius:12px;padding:12px 14px;margin-bottom:8px;font-size:16px;font-weight:600}
+.setrow.col{flex-direction:column;align-items:stretch;gap:10px}
+.setrow .lab{display:flex;justify-content:space-between}
+.tog{width:54px;height:30px;border-radius:15px;border:0;background:rgba(58,42,20,.25);position:relative;transition:background .2s}
+.tog i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left .2s}
+.tog.on{background:#2f8a5a}.tog.on i{left:27px}
+input[type=range]{width:100%;accent-color:#1f6f91;height:28px;touch-action:pan-x}
+input[type=range]:disabled{opacity:.35}
 .help{text-align:left}
 .help h3{margin:14px 0 6px;font-size:16px;color:#1f4f66}
 .help h3:first-child{margin-top:2px}
@@ -553,6 +562,37 @@ try{const o=JSON.parse(localStorage.getItem('tidewright-v2-profile'));if(o&&o.ex
 })();
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save();});
 
+/* ---------- music & settings ---------- */
+const SET_KEY='tidewright-settings',settings={music:true,vol:0.6};
+try{Object.assign(settings,JSON.parse(localStorage.getItem(SET_KEY))||{});}catch(e){}
+const IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+let audio=null,gainNode=null,actx=null;
+function initAudio(){
+  if(audio)return;
+  audio=new Audio('music.mp3');audio.loop=true;audio.preload='auto';
+  if(IOS){try{actx=new(window.AudioContext||window.webkitAudioContext)();const src=actx.createMediaElementSource(audio);gainNode=actx.createGain();src.connect(gainNode);gainNode.connect(actx.destination);}catch(e){gainNode=null;}}
+  applyVol();
+}
+function applyVol(){if(!audio)return;const v=settings.vol*settings.vol;if(gainNode)gainNode.gain.value=v;else audio.volume=Math.min(1,Math.max(0,v));}
+function musicSync(){
+  if(!settings.music||settings.vol<=0||document.hidden){if(audio)audio.pause();return;}
+  initAudio();if(actx&&actx.state==='suspended')actx.resume().catch(()=>{});
+  if(audio.paused){const p=audio.play();if(p&&p.catch)p.catch(()=>{});}
+}
+function saveSettings(){try{localStorage.setItem(SET_KEY,JSON.stringify(settings));}catch(e){}}
+addEventListener('pointerdown',()=>{if(settings.music&&(!audio||audio.paused))musicSync();},true);
+document.addEventListener('visibilitychange',()=>{if(document.hidden){if(audio)audio.pause();}else if(audio)musicSync();});
+function openSettings(back){
+  const pct=Math.round(settings.vol*100);
+  show('Nastavení','<div class="set">'+
+    '<div class="setrow"><span>🎵 Hudba</span><button id="mTog" class="tog'+(settings.music?' on':'')+'"><i></i></button></div>'+
+    '<div class="setrow col"><div class="lab"><span>Hlasitost</span><b id="mVal">'+pct+' %</b></div><input id="mVol" type="range" min="0" max="100" step="5" value="'+pct+'"'+(settings.music?'':' disabled')+'></div>'+
+    '<p class="tm" style="text-align:center">Hudba začne hrát po prvním klepnutí do hry.</p></div>',[{label:'Zpět',fn:back}]);
+  const tog=$('mTog'),vol=$('mVol');
+  tog.onclick=()=>{settings.music=!settings.music;tog.classList.toggle('on',settings.music);vol.disabled=!settings.music;saveSettings();musicSync();};
+  vol.oninput=()=>{settings.vol=vol.value/100;$('mVal').textContent=vol.value+' %';applyVol();saveSettings();musicSync();};
+}
+
 /* ---------- background ---------- */
 function buildBg(){
   bg=document.createElement('canvas');bg.width=W*dpr;bg.height=H*dpr;
@@ -968,6 +1008,7 @@ function openMenu(){
     {label:'Pokračovat',fn:()=>{paused=false;}},
     {label:'Uložit hru',fn:()=>{paused=false;save();}},
     {label:'Nová hra',fn:()=>chooseMode(openMenu)},
+    {label:'Nastavení',fn:()=>openSettings(openMenu)},
     {label:'Návod',fn:()=>show('Návod',helpHtml(),[{label:'Zpět',fn:openMenu}])},
     {label:'Hlavní menu',fn:()=>{save();const s=serialize();running=false;paused=false;pending=s.won?null:s;showIntro();}}
   ]);
@@ -979,6 +1020,7 @@ function showIntro(){
   if(pending&&!pending.won)btns.push({label:'Pokračovat (level '+pending.level+(pending.mode==='exp'?', Expert':'')+')',fn:()=>{restore(pending);pending=null;paused=false;running=true;}});
   btns.push({label:'Nová hra',fn:()=>chooseMode(showIntro)});
   btns.push({label:'Návod',fn:()=>show('Návod',helpHtml(),[{label:'Zpět',fn:showIntro}])});
+  btns.push({label:'Nastavení',fn:()=>openSettings(showIntro)});
   show('Tidewright',
    '<div class="story">'+
    '<p>Když moře spolklo starý přístav, zhasl i maják na útesu. Od té doby lodě bloudí v mlze a rybáři se nevracejí domů.</p>'+
