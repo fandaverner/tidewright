@@ -594,6 +594,53 @@ function openSettings(back){
 }
 
 /* ---------- background ---------- */
+function drawCliffs(b){
+  const R=(x,y)=>{const t=at(x,y);return !!(t&&t.rock);};
+  // 1) ground shadow
+  b.fillStyle='rgba(55,38,15,.28)';
+  for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){if(!R(x,y)||R(x,y+1))continue;
+    b.beginPath();b.ellipse((x+0.5)*T,(y+0.93)*T,T*0.5,T*0.11,0,0,6.283);b.fill();}
+  // 2) dark rock body, merged with neighbours
+  const shape=(x,y)=>{
+    const px=x*T,py=y*T,L=R(x-1,y),Rt=R(x+1,y),U=R(x,y-1);
+    const l=L?px:px+T*0.06,r=Rt?px+T:px+T*0.94,bot=py+T*0.92;
+    const base=[0.14,-0.04,0.08];const pk=[0.2,0.5,0.8].map((f,i)=>[px+T*(f+(rnd(x,y,300+i)-0.5)*0.12),U?py-T*0.02:py+T*(base[(i+Math.floor(rnd(x,y,315)*3))%3]+rnd(x,y,310+i)*0.12)]);
+    const vl=[0.35,0.65].map((f,i)=>[px+T*f,U?py:py+T*(0.2+rnd(x,y,320+i)*0.12)]);
+    const top=[[l,U?py:py+T*(0.3+rnd(x,y,330)*0.1)],pk[0],vl[0],pk[1],vl[1],pk[2],[r,U?py:py+T*(0.3+rnd(x,y,331)*0.1)]];
+    return{px,py,l,r,bot,pk,vl,top};
+  };
+  for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){if(!R(x,y))continue;
+    const s=shape(x,y);
+    b.fillStyle='#4c5158';b.beginPath();b.moveTo(s.l,s.bot);s.top.forEach(([a,c])=>b.lineTo(a,c));b.lineTo(s.r,s.bot);b.closePath();b.fill();
+    if(R(x,y+1)){b.fillRect(s.l,s.py+T*0.5,s.r-s.l,T*0.6);}
+  }
+  // 3) facets: lit left faces, mid tone, dark right faces
+  for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){if(!R(x,y))continue;
+    const s=shape(x,y),U=R(x,y-1),mid=s.py+T*(U?0.4:0.52);
+    const pts=s.top;
+    for(let i=1;i<pts.length-1;i+=2){
+      const[pxk,pyk]=pts[i],[ax,ay]=pts[i-1],[bx,by]=pts[i+1],fx=pxk+(rnd(x,y,340+i)-0.5)*T*0.06;
+      b.fillStyle='#8f969e';b.beginPath();b.moveTo(ax,ay);b.lineTo(pxk,pyk);b.lineTo(fx,mid);b.lineTo(ax,Math.max(ay,mid-T*0.08));b.closePath();b.fill();
+      b.fillStyle='#6b7179';b.beginPath();b.moveTo(pxk,pyk);b.lineTo(bx,by);b.lineTo(bx,Math.max(by,mid-T*0.05));b.lineTo(fx,mid);b.closePath();b.fill();
+      b.strokeStyle='rgba(255,255,255,.35)';b.lineWidth=Math.max(1,T*0.025);b.lineCap='round';
+      b.beginPath();b.moveTo(ax+(pxk-ax)*0.15,ay+(pyk-ay)*0.15);b.lineTo(pxk,pyk);b.stroke();
+    }
+    // lower cliff face with strata
+    b.fillStyle='#5a6068';b.fillRect(s.l,mid,s.r-s.l,(R(x,y+1)?s.py+T:s.bot)-mid);
+    b.strokeStyle='rgba(25,27,31,.38)';b.lineWidth=Math.max(1,T*0.022);
+    for(let k=0;k<3;k++){const yy=mid+T*(0.08+k*0.09)+rnd(x,y,350+k)*T*0.03;if(yy>s.bot-T*0.03)break;
+      b.beginPath();b.moveTo(s.l+T*0.03,yy);b.lineTo(s.l+(s.r-s.l)*0.5,yy+(rnd(x,y,360+k)-0.5)*T*0.05);b.lineTo(s.r-T*0.03,yy+(rnd(x,y,370+k)-0.5)*T*0.04);b.stroke();}
+    b.strokeStyle='rgba(20,22,26,.45)';
+    const cx=s.px+T*(0.3+rnd(x,y,380)*0.4);
+    b.beginPath();b.moveTo(cx,mid-T*0.12);b.lineTo(cx+T*0.04,mid+T*0.06);b.lineTo(cx-T*0.02,mid+T*0.18);b.stroke();
+    if(!R(x,y+1)){
+      b.fillStyle='rgba(25,27,31,.35)';b.fillRect(s.l,s.bot-T*0.05,s.r-s.l,T*0.05);
+      if(rnd(x,y,390)>0.45){b.strokeStyle=rnd(x,y,391)>0.5?'#5f8f4a':'#4f7a3e';b.lineWidth=Math.max(1.2,T*0.03);
+        const gx=s.px+T*(0.15+rnd(x,y,392)*0.6),gy=s.bot;
+        b.beginPath();for(let g=-1;g<=1;g++){b.moveTo(gx+g*T*0.04,gy);b.lineTo(gx+g*T*0.07,gy-T*0.1);}b.stroke();}
+    }
+  }
+}
 function buildBg(){
   bg=document.createElement('canvas');bg.width=W*dpr;bg.height=H*dpr;
   const b=bg.getContext('2d');b.setTransform(dpr,0,0,dpr,0,0);
@@ -624,15 +671,7 @@ function buildBg(){
   b.strokeStyle='rgba(120,90,40,.07)';b.lineWidth=1;
   for(let x=1;x<COLS;x++){b.beginPath();b.moveTo(x*T,0);b.lineTo(x*T,gh);b.stroke();}
   for(let y=1;y<ROWS;y++){b.beginPath();b.moveTo(0,y*T);b.lineTo(gw,y*T);b.stroke();}
-  for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){if(!grid[y][x].rock)continue;
-    const cx=(x+0.5)*T,cy=(y+0.5)*T;
-    b.fillStyle='rgba(60,40,15,.25)';b.beginPath();b.ellipse(cx,cy+T*0.33,T*0.44,T*0.1,0,0,6.283);b.fill();
-    const pts=[];for(let i=0;i<9;i++){const a=i/9*6.283,rad=T*(0.36+rnd(x,y,i+200)*0.1);pts.push([cx+Math.cos(a)*rad,cy+Math.sin(a)*rad*0.82]);}
-    b.fillStyle='#71777e';b.beginPath();pts.forEach(([a,c],i)=>i?b.lineTo(a,c):b.moveTo(a,c));b.closePath();b.fill();
-    b.fillStyle='#9aa0a7';b.beginPath();pts.forEach(([a,c],i)=>{const px=cx+(a-cx)*0.78,py=cy-T*0.07+(c-cy)*0.7;i?b.lineTo(px,py):b.moveTo(px,py);});b.closePath();b.fill();
-    b.fillStyle='rgba(255,255,255,.35)';b.beginPath();b.ellipse(cx-T*0.1,cy-T*0.17,T*0.1,T*0.05,-0.4,0,6.283);b.fill();
-    b.strokeStyle='rgba(40,42,48,.45)';b.lineWidth=1.3;b.beginPath();b.moveTo(cx+T*0.05,cy-T*0.2);b.lineTo(cx+T*0.12,cy-T*0.02);b.lineTo(cx+T*0.04,cy+T*0.12);b.stroke();
-  }
+  drawCliffs(b);
   // name labels on ore patches
   const seen=new Set();
   for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){const o=grid[y][x].ore;if(!o||seen.has(x+','+y))continue;
