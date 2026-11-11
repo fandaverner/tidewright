@@ -1,0 +1,42 @@
+name: Apply Tidewright graphics patch
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  apply-graphics-patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+
+      - name: Apply graphics patch
+        run: |
+          test -f patches/tidewright_graphics.patch
+          if git apply --check patches/tidewright_graphics.patch; then
+            git apply patches/tidewright_graphics.patch
+          elif git apply --reverse --check patches/tidewright_graphics.patch; then
+            echo "The graphics patch is already present on main."
+          else
+            echo "The patch conflicts with the current main branch."
+            exit 1
+          fi
+
+      - name: Create or update pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: automated/tidewright-graphics
+          delete-branch: true
+          commit-message: "Polish Tidewright water graphics"
+          title: "Polish Tidewright water graphics"
+          body: |
+            Applies the prepared graphics patch, adding subtle animated water reflections to the game canvas.
+          add-paths: index.html
